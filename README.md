@@ -90,6 +90,15 @@ npm run db:studio
 npm run dev
 ```
 
+For Hostinger or any platform that expects a root `server.js`, build from the
+repo root and run the generated backend entry:
+
+```bash
+npm install
+npm run build
+node server.js
+```
+
 API URL: `http://localhost:4000/api/v1`
 
 ## Authentication API
