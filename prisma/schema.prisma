@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum AuthProvider {
+  GOOGLE
+  LOCAL
+}
+
+enum AttributeDisplayType {
+  SELECT
+  COLOR
+  BUTTON
+}
+
+enum ProductType {
+  SIMPLE
+  VARIABLE
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum StockStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+  BACKORDER
+}
+
+enum ProductMediaType {
+  IMAGE
+  VIDEO
+}
+
+enum StockAdjustmentReason {
+  NEW_STOCK_RECEIVED
+  DAMAGED_ITEM
+  MANUAL_CORRECTION
+  ORDER_CANCELLATION
+  RETURN_RECEIVED
+}
+
+enum StockMovementType {
+  INCREASE
+  DECREASE
+  SET
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  email        String       @unique
+  name         String?
+  avatarUrl    String?      @map("avatar_url")
+  googleId     String?      @unique @map("google_id")
+  passwordHash String?      @map("password_hash")
+  provider     AuthProvider
+  role         UserRole     @default(CUSTOMER)
+  customerProfile CustomerProfile?
+  reviews      Review[]
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model CustomerProfile {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @unique @db.Uuid @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wishlist       Json     @map("wishlist")
+  addresses      Json     @map("addresses")
+  orders         Json     @map("orders")
+  isBlocked      Boolean  @default(false) @map("is_blocked")
+  blockedReason  String?  @map("blocked_reason")
+  blockedAt      DateTime? @map("blocked_at")
+  adminNotes     String?  @map("admin_notes")
+  usedPromoCodes Json     @map("used_promo_codes")
+  returnsRefunds Json     @map("returns_refunds")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("customer_profiles")
+}
+
+model Category {
+  id               String     @id @default(uuid()) @db.Uuid
+  name             String
+  slug             String     @unique
+  description      String?
+  imageUrl         String?    @map("image_url")
+  bannerUrl        String?    @map("banner_url")
+  displayOrder     Int        @default(0) @map("display_order")
+  isActive         Boolean    @default(true) @map("is_active")
+  seoTitle         String?    @map("seo_title")
+  seoDescription   String?    @map("seo_description")
+  parentId         String?    @db.Uuid @map("parent_id")
+  parent           Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Category[] @relation("CategoryHierarchy")
+  productAssignments ProductCategory[]
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  @@index([parentId, displayOrder])
+  @@index([isActive])
+  @@map("categories")
+}
+
+model Product {
+  id                  String             @id @default(uuid()) @db.Uuid
+  name                String
+  slug                String             @unique
+  sku                 String?            @unique
+  type                ProductType        @default(SIMPLE)
+  status              ProductStatus      @default(DRAFT)
+  shortDescription    String?            @map("short_description")
+  description         String?
+  brandId             String?            @db.Uuid @map("brand_id")
+  brand               Brand?             @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  gender              String?
+  isFeatured          Boolean            @default(false) @map("is_featured")
+  isNewArrival        Boolean            @default(false) @map("is_new_arrival")
+  regularPrice        Decimal?           @db.Decimal(12, 2) @map("regular_price")
+  salePrice           Decimal?           @db.Decimal(12, 2) @map("sale_price")
+  saleStartsAt        DateTime?          @map("sale_starts_at")
+  saleEndsAt          DateTime?          @map("sale_ends_at")
+  costPrice           Decimal?           @db.Decimal(12, 2) @map("cost_price")
+  isTaxable           Boolean            @default(true) @map("is_taxable")
+  taxClass            String?             @map("tax_class")
+  stockQuantity       Int                @default(0) @map("stock_quantity")
+  lowStockThreshold   Int                @default(5) @map("low_stock_threshold")
+  stockStatus         StockStatus        @default(IN_STOCK) @map("stock_status")
+  allowBackorder      Boolean            @default(false) @map("allow_backorder")
+  maxOrderQuantity    Int?               @map("max_order_quantity")
+  weight              Decimal?           @db.Decimal(10, 3)
+  length              Decimal?           @db.Decimal(10, 2)
+  width               Decimal?           @db.Decimal(10, 2)
+  height              Decimal?           @db.Decimal(10, 2)
+  shippingClass       String?             @map("shipping_class")
+  isFreeShipping      Boolean             @default(false) @map("is_free_shipping")
+  isCodEligible       Boolean             @default(true) @map("is_cod_eligible")
+  dispatchDays        Int?                @map("dispatch_days")
+  useGlobalPolicies   Boolean             @default(true) @map("use_global_policies")
+  shippingPolicy      String?             @map("shipping_policy")
+  returnPolicy        String?             @map("return_policy")
+  exchangePolicy      String?             @map("exchange_policy")
+  warrantyDetails     String?             @map("warranty_details")
+  isReturnAllowed     Boolean             @default(true) @map("is_return_allowed")
+  returnWindowDays    Int?                @map("return_window_days")
+  seoTitle            String?             @map("seo_title")
+  metaDescription     String?             @map("meta_description")
+  searchKeywords      String[]            @default([]) @map("search_keywords")
+  canonicalUrl        String?             @map("canonical_url")
+  categoryAssignments ProductCategory[]
+  attributeAssignments ProductAttribute[]
+  tagAssignments      ProductTag[]
+  media               ProductMedia[]
+  variations          ProductVariation[]
+  stockMovements      StockMovement[]
+  reviews             Review[]
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([type])
+  @@index([brandId])
+  @@map("products")
+}
+
+model Review {
+  id               String       @id @default(uuid()) @db.Uuid
+  userId           String       @db.Uuid @map("user_id")
+  productId        String       @db.Uuid @map("product_id")
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product          Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rating           Int
+  title            String
+  text             String
+  images           String[]     @default([])
+  verifiedPurchase Boolean      @default(false) @map("verified_purchase")
+  status           ReviewStatus @default(PENDING)
+  adminReply       String?      @map("admin_reply")
+  isSpam           Boolean      @default(false) @map("is_spam")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  @@unique([userId, productId])
+  @@index([productId, status, createdAt])
+  @@index([status, createdAt])
+  @@map("reviews")
+}
+
+model Brand {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String    @unique
+  isActive  Boolean   @default(true) @map("is_active")
+  products  Product[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  @@map("brands")
+}
+
+model Tag {
+  id       String       @id @default(uuid()) @db.Uuid
+  name     String
+  slug     String       @unique
+  products ProductTag[]
+  @@map("tags")
+}
+
+model ProductTag {
+  productId String  @db.Uuid @map("product_id")
+  tagId     String  @db.Uuid @map("tag_id")
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  @@id([productId, tagId])
+  @@map("product_tags")
+}
+
+model ProductMedia {
+  id           String           @id @default(uuid()) @db.Uuid
+  productId    String           @db.Uuid @map("product_id")
+  product      Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type         ProductMediaType @default(IMAGE)
+  path         String
+  altText      String?          @map("alt_text")
+  displayOrder Int              @default(0) @map("display_order")
+  isPrimary    Boolean          @default(false) @map("is_primary")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  @@index([productId, displayOrder])
+  @@map("product_media")
+}
+
+model ProductVariation {
+  id                String                    @id @default(uuid()) @db.Uuid
+  productId         String                    @db.Uuid @map("product_id")
+  product           Product                   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku               String                    @unique
+  regularPrice      Decimal                   @db.Decimal(12, 2) @map("regular_price")
+  salePrice         Decimal?                  @db.Decimal(12, 2) @map("sale_price")
+  stockQuantity     Int                       @default(0) @map("stock_quantity")
+  lowStockThreshold Int                       @default(5) @map("low_stock_threshold")
+  stockStatus       StockStatus               @default(IN_STOCK) @map("stock_status")
+  weight            Decimal?                  @db.Decimal(10, 3)
+  length            Decimal?                  @db.Decimal(10, 2)
+  width             Decimal?                  @db.Decimal(10, 2)
+  height            Decimal?                  @db.Decimal(10, 2)
+  imagePath         String?                   @map("image_path")
+  isActive          Boolean                   @default(true) @map("is_active")
+  selections        ProductVariationSelection[]
+  stockMovements    StockMovement[]
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+  @@index([productId])
+  @@map("product_variations")
+}
+
+model ProductVariationSelection {
+  variationId     String           @db.Uuid @map("variation_id")
+  attributeValueId String          @db.Uuid @map("attribute_value_id")
+  variation       ProductVariation @relation(fields: [variationId], references: [id], onDelete: Cascade)
+  attributeValue  AttributeValue   @relation(fields: [attributeValueId], references: [id], onDelete: Restrict)
+  @@id([variationId, attributeValueId])
+  @@index([attributeValueId])
+  @@map("product_variation_selections")
+}
+
+model Attribute {
+  id                    String               @id @default(uuid()) @db.Uuid
+  name                  String
+  slug                  String               @unique
+  description           String?
+  displayType           AttributeDisplayType @default(SELECT) @map("display_type")
+  displayOrder          Int                  @default(0) @map("display_order")
+  isActive              Boolean              @default(true) @map("is_active")
+  isVisibleOnStorefront Boolean              @default(true) @map("is_visible_on_storefront")
+  isUsedForVariations   Boolean              @default(true) @map("is_used_for_variations")
+  values                AttributeValue[]
+  productAssignments    ProductAttribute[]
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  @@index([displayOrder])
+  @@index([isActive])
+  @@map("attributes")
+}
+
+model AttributeValue {
+  id           String    @id @default(uuid()) @db.Uuid
+  attributeId  String    @db.Uuid @map("attribute_id")
+  attribute    Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  name         String
+  slug         String
+  colorHex     String?   @map("color_hex")
+  displayOrder Int       @default(0) @map("display_order")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  variationSelections ProductVariationSelection[]
+
+  @@unique([attributeId, slug])
+  @@index([attributeId, displayOrder])
+  @@map("attribute_values")
+}
+
+model ProductAttribute {
+  productId   String    @db.Uuid @map("product_id")
+  attributeId String    @db.Uuid @map("attribute_id")
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute   Attribute @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@id([productId, attributeId])
+  @@index([attributeId])
+  @@map("product_attributes")
+}
+
+model ProductCategory {
+  productId  String   @db.Uuid @map("product_id")
+  categoryId String   @db.Uuid @map("category_id")
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+  @@map("product_categories")
+}
+
+model StockMovement {
+  id                 String                @id @default(uuid()) @db.Uuid
+  productId          String                @db.Uuid @map("product_id")
+  variationId        String?               @db.Uuid @map("variation_id")
+  product            Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variation          ProductVariation?     @relation(fields: [variationId], references: [id], onDelete: SetNull)
+  movementType       StockMovementType     @map("movement_type")
+  reason             StockAdjustmentReason
+  skuSnapshot        String                @map("sku_snapshot")
+  itemNameSnapshot   String                @map("item_name_snapshot")
+  previousQuantity   Int                   @map("previous_quantity")
+  adjustmentQuantity Int                   @map("adjustment_quantity")
+  newQuantity        Int                   @map("new_quantity")
+  note               String?
+  createdByEmail     String                @map("created_by_email")
+  createdAt          DateTime              @default(now()) @map("created_at")
+
+  @@index([productId, createdAt])
+  @@index([variationId, createdAt])
+  @@index([reason])
+  @@map("stock_movements")
+}
