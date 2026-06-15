@@ -27,7 +27,9 @@ Create a local database using pgAdmin or `psql`:
 create database solevibe;
 ```
 
-Copy `.env.example` to `.env`, then configure it:
+Copy `.env.example` to `.env`, then configure it for the target environment:
+
+Local development:
 
 ```env
 NODE_ENV=development
@@ -40,6 +42,24 @@ GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 ADMIN_EMAIL=admin@solevibe.local
 ADMIN_PASSWORD=change-this-admin-password
 ```
+
+Neon or any hosted Postgres:
+
+```env
+NODE_ENV=production
+PORT=4000
+PUBLIC_API_URL=https://your-api-domain.com
+FRONTEND_URL=https://your-frontend-domain.com
+DATABASE_URL=postgresql://USER:PASSWORD@ep-xxxxx.region.aws.neon.tech/solevibe?sslmode=require
+JWT_SECRET=replace-with-a-long-random-secret-at-least-32-characters
+JWT_EXPIRES_IN=7d
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+ADMIN_EMAIL=admin@solevibe.local
+ADMIN_PASSWORD=change-this-admin-password
+```
+
+For VPS hosting later, keep the same code and replace only `DATABASE_URL`,
+`PUBLIC_API_URL`, and `FRONTEND_URL`.
 
 ## Prisma Migration
 
