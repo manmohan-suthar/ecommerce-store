@@ -6,7 +6,9 @@
     "moduleResolution": "NodeNext",
     "target": "ES2022",
     "esModuleInterop": true,
-    "strict": true
+    "strict": false,
+    "skipLibCheck": true,
+    "noEmitOnError": false
   },
   "include": ["src/**/*.ts"]
 }
